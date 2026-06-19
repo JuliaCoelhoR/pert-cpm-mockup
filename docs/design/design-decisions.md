@@ -35,6 +35,17 @@ Fully automatic. The engine places nodes based on dependency depth; the user can
 - Non-critical edges: grey
 - Multiple critical paths are supported — if two or more paths tie for the maximum duration, all are highlighted.
 
+### Dummy Activities
+
+AOA networks require dummy activities (zero-duration, zero-cost arrows) when two activities share some but not all prerequisites. The backend inserts them automatically; the user never enters them. In the diagram:
+
+- Dummy arrows render as **dotted lines** to distinguish them from real activities.
+- A dummy arrow on the critical path is **dotted red**; off the critical path it is **dotted grey**.
+- Dummy arrows carry **no letter or duration label**.
+- Dummy arrows participate in the automatic hierarchical layout like any other edge.
+- Hovering over a dummy arrow shows a minimal tooltip: "Dummy activity (structural dependency, zero duration)."
+- Dummy activities are **excluded** from the summary panel's Total Activities count, Critical Activities count, and activity table.
+
 ---
 
 ## Activity Input Table
@@ -129,11 +140,8 @@ Each critical path shown as a node sequence (e.g. `1 → 3 → 5 → 7`). If mul
 
 | Stat | |
 |---|---|
-| Total Activities | |
-| Critical Activities | |
 | Total Nodes | |
 | Minimal Project Duration | |
-| Total Cost | Sum of all activity costs |
 | Total Cost per Critical Path | One entry per critical path |
 
 ### 3. Activity Table

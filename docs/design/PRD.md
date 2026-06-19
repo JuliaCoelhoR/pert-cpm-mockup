@@ -46,8 +46,7 @@ A local desktop application (native window via pywebview) that lets the user:
 31. As a user, I want to hover over an activity arrow and see a tooltip with: Activity Letter + Description, Duration, Cost/day, Total activity cost, ES, EF, LS, LF, Free Float, Total Float, and a Critical path indicator so that I can read all scheduling values without leaving the diagram.
 32. As a user, I want to hover over a node (event) and see a tooltip with: Event number, EET, LET, Slack (highlighted if zero), and the list of activities entering and leaving that event so that I can understand the state of the project at any event.
 33. As a user, I want the summary panel to show each critical path as a node sequence (e.g. 1 -> 3 -> 5 -> 7) so that I can communicate the critical path clearly.
-34. As a user, I want the summary panel to show project-level stats (Total Activities, Critical Activities, Total Nodes, Minimal Project Duration, Total Cost, Total Cost per Critical Path) so that I have a quick overview without reading the full activity table.
-35. As a user, I want the summary panel to include a scrollable activity table with columns Letter, Description, From Node, To Node, Duration, Cost/day, Total Cost, ES, EF, LS, LF, Free Float, Total Float, and Critical flag so that I can compare activities side by side.
+35. As a user, I want the summary panel to include a scrollable activity table with columns Letter, Description, From Node, To Node, Duration, Cost/day, Total Cost, ES, EF, LS, LF, Free Float, Total Float, and Critical flag so that I can compare activities side by side. Dummy activities are excluded from this table.
 36. As a user, I want the application to use a light colour scheme (light background, charcoal text) so that the diagram is easy to read under normal lighting.
 
 ## Implementation Decisions
@@ -94,6 +93,7 @@ A single POST endpoint (e.g. /api/compute) accepts the activity list as JSON and
 - Arrow labels: activity letter on one side, duration on the other.
 - Critical path: red edges + red node borders. Non-critical: grey edges.
 - Multiple critical paths all highlighted.
+- Dummy activities render as dotted arrows (grey when non-critical, dotted red when critical). No letter/duration label on dummy arrows.
 
 ### Tooltips
 
@@ -140,6 +140,6 @@ Not in scope for automated tests:
 
 ## Further Notes
 
-- **Dummy activities:** AOA networks sometimes require dummy activities (zero-duration, zero-cost arrows) to correctly represent certain dependency structures. The current design does not address dummy activities — this should be revisited if the tool is taken beyond mock-up stage.
+- **Dummy activities:** AOA networks sometimes require dummy activities (zero-duration, zero-cost arrows) to correctly represent certain dependency structures (e.g. activity E depends only on B, while activity F depends on both B and C). The backend inserts dummy activities automatically — the user never enters them. Dummies appear in the diagram as dotted arrows and are excluded from the summary panel's activity counts and activity table.
 - **Currency:** Cost/day is denominated in R$ (Brazilian Real). The UI should label it accordingly throughout.
 - **Multiple critical paths:** The current design highlights all tied-maximum-duration paths. The summary panel lists each as a separate row with its own total cost.
