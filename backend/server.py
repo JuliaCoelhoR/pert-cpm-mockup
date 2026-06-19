@@ -1,9 +1,8 @@
-import logging
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.serving import BaseWSGIServer, make_server
 
-from backend.cpm import compute
+from backend.cpm import compute, validate_activities
 
 _FRONTEND_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
@@ -24,11 +23,13 @@ def create_app() -> Flask:
         body = request.get_json(silent=True)
         if not isinstance(body, list):
             return jsonify({"error": "Expected a JSON array of activities"}), 400
+        errors = validate_activities(body)
+        if errors:
+            return jsonify({"errors": errors}), 422
         try:
             result = compute(body)
-        except Exception:
-            logging.exception("CPM computation failed")
-            return jsonify({"error": "Computation failed — check activity data"}), 422
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
         return jsonify(result)
 
     return app

@@ -1,36 +1,20 @@
 """Pure CPM computation module — no HTTP, no Flask, no UI.
 
-Limitation: this module does not insert dummy activities. AOA networks where
-two activities share a predecessor but NOT all predecessors (e.g. E dep[B] and
-F dep[B,C]) cannot be represented correctly without dummies. Such networks will
-produce incorrect scheduling values. This is a known out-of-scope item per the
-project PRD.
+Dummy activities are inserted automatically when two activities share some but
+not all prerequisites (e.g. E dep[B] and F dep[B,C]).  Each inserted dummy
+carries a zero-duration, zero-cost arrow in the AOA graph and is included in
+the output with ``"dummy": True`` so the frontend can render it as a dotted
+arrow.
 """
 from __future__ import annotations
 
 from collections import defaultdict, deque
 
+_START_NODE = 1
+_REQUIRED_KEYS = frozenset({"letter", "description", "prerequisites", "duration", "cost_per_day"})
 
-def compute(activities: list[dict]) -> dict:
-    """
-    Compute full CPM scheduling for an AOA network.
 
-    activities: list of dicts with keys:
-        letter, description, prerequisites, duration, cost_per_day
-    """
-    if not activities:
-        return {
-            "activities": [],
-            "events": [],
-            "project": {
-                "duration": 0,
-                "total_cost": 0.0,
-                "critical_paths": [],
-                "cost_per_critical_path": [],
-            },
-        }
-
-    # --- topological sort to assign levels ---
+def _assign_levels(activities: list[dict]) -> dict[str, int]:
     letter_to_act = {a["letter"]: a for a in activities}
     in_degree: dict[str, int] = {a["letter"]: 0 for a in activities}
     children: dict[str, list[str]] = defaultdict(list)
@@ -52,83 +36,144 @@ def compute(activities: list[dict]) -> dict:
             remaining[child] -= 1
             if remaining[child] == 0:
                 queue.append(child)
+    return level
 
-    # --- assign event numbers ---
-    # Start event = 1
-    START_NODE = 1
-    next_node = [2]
+
+def _assign_event_numbers(
+    activities: list[dict], levels: dict[str, int]
+) -> tuple[dict[str, int], dict[str, int], list[dict]]:
+    """Dummy activities are inserted when two predecessors must not share an end-node."""
+    next_node = [_START_NODE + 1]
+    dummy_counter = [0]
 
     def new_node() -> int:
         n = next_node[0]
         next_node[0] += 1
         return n
 
-    # from_node: activities with no prerequisites share the start node.
-    # activities with prerequisites: if single predecessor, from_node = predecessor's to_node;
-    # if multiple predecessors, create a merge node (max to_node of preds, or new node).
+    def new_dummy_letter() -> str:
+        dummy_counter[0] += 1
+        return f"DA{dummy_counter[0]}"
+
+    canonical: dict[int, int] = {}
+
+    def find(n: int) -> int:
+        while n in canonical:
+            n = canonical[n]
+        return n
+
     to_node: dict[str, int] = {}
     from_node: dict[str, int] = {}
+    dummy_activities: list[dict] = []
 
-    sorted_letters = sorted(activities, key=lambda a: (level[a["letter"]], a["letter"]))
+    node_starters: dict[int, set[str]] = defaultdict(set)
 
-    for a in sorted_letters:
+    for a in sorted(activities, key=lambda a: (levels[a["letter"]], a["letter"])):
         letter = a["letter"]
         prereqs = a["prerequisites"]
         if not prereqs:
-            from_node[letter] = START_NODE
+            from_node[letter] = _START_NODE
+            node_starters[find(_START_NODE)].add(letter)
         elif len(prereqs) == 1:
-            from_node[letter] = to_node[prereqs[0]]
+            raw = to_node[prereqs[0]]
+            from_node[letter] = raw
+            node_starters[find(raw)].add(letter)
         else:
-            pred_to_nodes = [to_node[p] for p in prereqs]
-            unique = set(pred_to_nodes)
+            canonical_preds = [find(to_node[p]) for p in prereqs]
+            unique = set(canonical_preds)
             if len(unique) == 1:
-                from_node[letter] = unique.pop()
+                from_node[letter] = to_node[prereqs[0]]
+                node_starters[unique.pop()].add(letter)
             else:
-                # create a merge node; all pred to_nodes become this merge node
                 merge = new_node()
-                # re-map predecessor to_nodes to merge
+                prereq_set = set(prereqs)
+
                 for p in prereqs:
-                    old = to_node[p]
-                    # update all activities whose to_node == old to use merge instead
-                    for letter2, tn in to_node.items():
-                        if tn == old:
-                            to_node[letter2] = merge
-                    # also update from_nodes already assigned
-                    for letter2, fn in from_node.items():
-                        if fn == old:
-                            from_node[letter2] = merge
-                    to_node[p] = merge
+                    old_can = find(to_node[p])
+                    starters = node_starters.get(old_can, set())
+                    conflict = any(
+                        set(next(
+                            act2["prerequisites"]
+                            for act2 in activities
+                            if act2["letter"] == lt
+                        )) != prereq_set
+                        for lt in starters
+                    )
+
+                    if conflict:
+                        # do NOT union: starters at old_can must not inherit this merge
+                        dl = new_dummy_letter()
+                        dummy_activities.append({
+                            "letter": dl,
+                            "description": "Dummy",
+                            "prerequisites": [p],
+                            "duration": 0,
+                            "cost_per_day": 0,
+                            "dummy": True,
+                        })
+                        from_node[dl] = to_node[p]
+                        to_node[dl] = merge
+                    else:
+                        canonical[old_can] = merge
+                        node_starters[merge] |= node_starters.pop(old_can, set())
+
                 from_node[letter] = merge
-        to_node[letter] = new_node()
+                node_starters[merge].add(letter)
 
-    # --- collect all events ---
-    all_nodes = {START_NODE}
-    for letter in [a["letter"] for a in activities]:
-        all_nodes.add(from_node[letter])
-        all_nodes.add(to_node[letter])
+        new_tn = new_node()
+        to_node[letter] = new_tn
 
-    # --- forward pass: EET ---
+    for k in from_node:
+        from_node[k] = find(from_node[k])
+    for k in to_node:
+        to_node[k] = find(to_node[k])
+
+    return from_node, to_node, dummy_activities
+
+
+def _forward_pass(
+    activities: list[dict],
+    from_node: dict[str, int],
+    to_node: dict[str, int],
+    levels: dict[str, int],
+) -> dict[int, float]:
+    all_nodes: set[int] = {_START_NODE}
+    for a in activities:
+        all_nodes.add(from_node[a["letter"]])
+        all_nodes.add(to_node[a["letter"]])
+
     EET: dict[int, float] = {n: 0.0 for n in all_nodes}
-    for a in sorted_letters:
+    for a in sorted(activities, key=lambda a: (levels[a["letter"]], a["letter"])):
         letter = a["letter"]
-        fn = from_node[letter]
-        tn = to_node[letter]
-        EET[tn] = max(EET[tn], EET[fn] + a["duration"])
+        EET[to_node[letter]] = max(EET[to_node[letter]], EET[from_node[letter]] + a["duration"])
+    return EET
 
+
+def _backward_pass(
+    activities: list[dict],
+    from_node: dict[str, int],
+    to_node: dict[str, int],
+    levels: dict[str, int],
+    EET: dict[int, float],
+) -> dict[int, float]:
     project_duration = max(EET.values())
-    end_node = max(EET, key=lambda n: EET[n])
-
-    # --- backward pass: LET ---
-    LET: dict[int, float] = {n: project_duration for n in all_nodes}
-    # reverse topological order
-    for a in reversed(sorted_letters):
+    LET: dict[int, float] = {n: project_duration for n in EET}
+    for a in sorted(
+        activities, key=lambda a: (levels[a["letter"]], a["letter"]), reverse=True
+    ):
         letter = a["letter"]
-        fn = from_node[letter]
-        tn = to_node[letter]
-        LET[fn] = min(LET[fn], LET[tn] - a["duration"])
+        LET[from_node[letter]] = min(LET[from_node[letter]], LET[to_node[letter]] - a["duration"])
+    return LET
 
-    # --- per-activity scheduling values ---
-    result_activities = []
+
+def _schedule_activities(
+    activities: list[dict],
+    from_node: dict[str, int],
+    to_node: dict[str, int],
+    EET: dict[int, float],
+    LET: dict[int, float],
+) -> list[dict]:
+    result = []
     for a in activities:
         letter = a["letter"]
         fn = from_node[letter]
@@ -140,7 +185,7 @@ def compute(activities: list[dict]) -> dict:
         total_float = LS - ES
         free_float = EET[tn] - EF
         total_cost = a["duration"] * a["cost_per_day"]
-        result_activities.append(
+        result.append(
             {
                 "letter": letter,
                 "description": a["description"],
@@ -158,21 +203,29 @@ def compute(activities: list[dict]) -> dict:
                 "critical": total_float == 0,
             }
         )
+    return result
 
-    # --- per-event values ---
-    result_events = []
-    for n in sorted(all_nodes):
-        result_events.append(
-            {
-                "number": n,
-                "EET": EET[n],
-                "LET": LET[n],
-                "slack": LET[n] - EET[n],
-            }
-        )
 
-    # --- critical paths (node sequences from start to end) ---
-    # build adjacency: node -> list of (to_node, letter) for critical activities
+def _compute_events(
+    EET: dict[int, float],
+    LET: dict[int, float],
+) -> list[dict]:
+    return [
+        {
+            "number": n,
+            "EET": EET[n],
+            "LET": LET[n],
+            "slack": LET[n] - EET[n],
+        }
+        for n in sorted(EET.keys())
+    ]
+
+
+def _find_critical_paths(
+    result_activities: list[dict],
+    start_node: int,
+    end_node: int,
+) -> tuple[list[list[int]], list[float]]:
     crit_adj: dict[int, list[tuple[int, str]]] = defaultdict(list)
     for a in result_activities:
         if a["critical"]:
@@ -189,19 +242,131 @@ def compute(activities: list[dict]) -> dict:
             dfs(next_n, path)
             path.pop()
 
-    dfs(START_NODE, [START_NODE])
+    dfs(start_node, [start_node])
 
-    # --- cost per critical path ---
-    # map (from_node, to_node) -> total_cost for quick lookup
-    edge_cost: dict[tuple[int, int], float] = {}
-    for a in result_activities:
-        edge_cost[(a["from_node"], a["to_node"])] = a["total_cost"]
+    edge_cost: dict[tuple[int, int], float] = {
+        (a["from_node"], a["to_node"]): a["total_cost"] for a in result_activities
+    }
+    cost_per_critical_path = [
+        sum(edge_cost.get((path[i], path[i + 1]), 0.0) for i in range(len(path) - 1))
+        for path in critical_paths
+    ]
+    return critical_paths, cost_per_critical_path
 
-    cost_per_critical_path: list[float] = []
-    for path in critical_paths:
-        c = sum(edge_cost.get((path[i], path[i + 1]), 0.0) for i in range(len(path) - 1))
-        cost_per_critical_path.append(c)
 
+def validate_activities(activities: list[dict]) -> list[str]:
+    errors: list[str] = []
+    letters_seen: set[str] = set()
+
+    for i, a in enumerate(activities):
+        missing = _REQUIRED_KEYS - a.keys()
+        label = f"Activity '{a.get('letter', f'#{i + 1}')}'"
+        if missing:
+            errors.append(f"{label}: missing required fields: {', '.join(sorted(missing))}")
+            continue
+
+        letter = a["letter"]
+        if not isinstance(letter, str) or not letter.strip():
+            errors.append(f"{label}: letter must be a non-empty string")
+        elif letter in letters_seen:
+            errors.append(f"{label}: duplicate letter")
+        else:
+            letters_seen.add(letter)
+
+        if not isinstance(a["description"], str) or not a["description"].strip():
+            errors.append(f"{label}: description is required")
+
+        if not isinstance(a["prerequisites"], list):
+            errors.append(f"{label}: prerequisites must be a list")
+
+        dur = a["duration"]
+        if isinstance(dur, bool) or not isinstance(dur, int) or dur < 1:
+            errors.append(f"{label}: duration must be a positive integer (minimum 1)")
+
+        cpd = a["cost_per_day"]
+        if isinstance(cpd, bool) or not isinstance(cpd, (int, float)) or cpd < 0:
+            errors.append(f"{label}: cost_per_day must be a non-negative number")
+
+    if errors:
+        return errors
+
+    letter_set = {a["letter"] for a in activities}
+    for a in activities:
+        for p in a["prerequisites"]:
+            if p not in letter_set:
+                errors.append(
+                    f"Activity '{a['letter']}': prerequisite '{p}' does not exist"
+                )
+
+    if errors:
+        return errors
+
+    in_degree: dict[str, int] = {a["letter"]: 0 for a in activities}
+    children: dict[str, list[str]] = defaultdict(list)
+    for a in activities:
+        for p in a["prerequisites"]:
+            in_degree[a["letter"]] += 1
+            children[p].append(a["letter"])
+
+    queue: deque[str] = deque(lt for lt, deg in in_degree.items() if deg == 0)
+    remaining = dict(in_degree)
+    visited: set[str] = set()
+    while queue:
+        lt = queue.popleft()
+        visited.add(lt)
+        for child in children[lt]:
+            remaining[child] -= 1
+            if remaining[child] == 0:
+                queue.append(child)
+
+    if len(visited) < len(activities):
+        errors.append(
+            "Dependency graph contains a cycle — check prerequisites for circular references"
+        )
+
+    return errors
+
+
+def compute(activities: list[dict]) -> dict:
+    if not activities:
+        return {
+            "activities": [],
+            "events": [],
+            "project": {
+                "duration": 0,
+                "total_cost": 0.0,
+                "critical_paths": [],
+                "cost_per_critical_path": [],
+            },
+        }
+
+    errors = validate_activities(activities)
+    if errors:
+        raise ValueError("\n".join(errors))
+
+    levels = _assign_levels(activities)
+    from_node, to_node, dummy_acts = _assign_event_numbers(activities, levels)
+
+    for d in dummy_acts:
+        prereq = d["prerequisites"][0]
+        levels[d["letter"]] = levels[prereq] + 1
+
+    all_activities = activities + dummy_acts
+
+    EET = _forward_pass(all_activities, from_node, to_node, levels)
+    project_duration = max(EET.values())
+    end_node = max(EET, key=lambda n: EET[n])
+    LET = _backward_pass(all_activities, from_node, to_node, levels, EET)
+    result_activities = _schedule_activities(all_activities, from_node, to_node, EET, LET)
+
+    dummy_letters = {d["letter"] for d in dummy_acts}
+    for ra in result_activities:
+        ra["dummy"] = ra["letter"] in dummy_letters
+
+    result_events = _compute_events(EET, LET)
+    critical_paths, cost_per_critical_path = _find_critical_paths(
+        result_activities, _START_NODE, end_node
+    )
     total_cost = sum(a["total_cost"] for a in result_activities)
 
     return {
