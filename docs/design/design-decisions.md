@@ -65,7 +65,7 @@ Activities are entered in an editable, spreadsheet-like table before the diagram
 ### Row Lifecycle
 
 - **Adding rows:** Auto-append. A trailing empty row is always visible at the bottom. It is greyed out with placeholder text (e.g. "New activity…") to signal affordance.
-- **Draft persistence:** trailing row values typed before a delete are preserved in `draftRow` and restored after `renderTable()`. This avoids surprising loss of in-progress input.
+- **Draft persistence:** trailing row values typed before a delete are preserved in `draftRow` and restored after `renderTable()`. This avoids surprising loss of in-progress input. Exception: when the last committed row is deleted, `draftRow` is cleared so the trailing row renders empty.
 - **Promoting rows:** No row is a real activity until the user clicks **Finished**. Promotion is all-or-nothing — if any row fails validation, nothing is promoted.
 - **Deleting rows:** Immediate on clicking the row's trash icon. If the deletion would leave dangling prerequisite references in other rows, a confirmation pop-up explains the situation and asks "are you sure?" before proceeding.
 - **Reordering:** Not supported. Rows stay in insertion order.
