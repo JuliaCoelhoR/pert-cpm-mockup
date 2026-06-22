@@ -159,6 +159,9 @@ function deleteRow(index) {
     }
 
     rows.splice(index, 1);
+    if (rows.length === 0) {
+        draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '' };
+    }
     renderTable();
 }
 
