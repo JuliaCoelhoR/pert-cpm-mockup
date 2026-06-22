@@ -316,6 +316,7 @@ async function handleFinished() {
 
 function renderDiagram(data) {
     const section = document.getElementById('diagram-section');
+    const wasHidden = section.classList.contains('hidden');
     section.classList.remove('hidden');
 
     const visNodes = new vis.DataSet(
@@ -384,7 +385,9 @@ function renderDiagram(data) {
         options
     );
 
-    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (wasHidden) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
