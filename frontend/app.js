@@ -228,7 +228,13 @@ function mapValidationErrors(backendErrors) {
             return;
         }
         const frontendField = fieldMap[e.field];
-        if (!frontendField) {
+        if (frontendField === undefined) {
+            console.warn(`mapValidationErrors: unrecognised backend field "${e.field}", falling back to banner`);
+            bannerMsgs.push(e.message);
+            return;
+        }
+        if (frontendField === null) {
+            // Intentional: no editable cell for this field (e.g. "letter")
             bannerMsgs.push(e.message);
             return;
         }
@@ -240,16 +246,7 @@ function mapValidationErrors(backendErrors) {
         fieldErrors.push({ index, field: frontendField, msg: e.message });
     });
 
-    if (bannerMsgs.length > 0) {
-        if (fieldErrors.length === 0) {
-            showBanner(bannerMsgs.join(' · '));
-            return [];
-        }
-        // Show global messages in the banner alongside per-cell highlights
-        showBanner(bannerMsgs.join(' · '));
-    }
-
-    return fieldErrors;
+    return { fieldErrors, bannerMsgs };
 }
 
 function applyErrors(errors) {
@@ -317,9 +314,17 @@ async function handleFinished() {
             try { body = await res.json(); } catch { /* non-JSON body */ }
 
             if (res.status === 422 && body !== null) {
-                const fieldErrors = mapValidationErrors(body.errors ?? []);
+                const { fieldErrors, bannerMsgs } = mapValidationErrors(body.errors ?? []);
                 if (fieldErrors.length > 0) {
                     applyErrors(fieldErrors);
+                    if (bannerMsgs.length > 0) {
+                        const banner = document.getElementById('error-banner');
+                        banner.textContent += ' ' + bannerMsgs.join(' · ');
+                    }
+                    return;
+                }
+                if (bannerMsgs.length > 0) {
+                    showBanner(bannerMsgs.join(' · '));
                     return;
                 }
             }
