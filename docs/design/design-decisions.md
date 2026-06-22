@@ -140,8 +140,11 @@ Each critical path shown as a node sequence (e.g. `1 → 3 → 5 → 7`). If mul
 
 | Stat | |
 |---|---|
+| Total Activities | Excludes dummy activities |
+| Critical Activities | Excludes dummy activities |
 | Total Nodes | |
 | Minimal Project Duration | |
+| Total Cost | Sum of all activity costs (dummies contribute 0) |
 | Total Cost per Critical Path | One entry per critical path |
 
 ### 3. Activity Table

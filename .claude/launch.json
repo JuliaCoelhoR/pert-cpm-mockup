@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flask-dev",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-c", "from backend.server import create_app; app = create_app(); app.run(host='127.0.0.1', port=5050, debug=False, use_reloader=False)"],
+      "port": 5050
+    }
+  ]
+}

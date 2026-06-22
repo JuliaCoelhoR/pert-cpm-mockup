@@ -8,10 +8,50 @@
 </head>
 <body>
     <header class="app-header">
-        <h1>PERT/CPM Tool</h1>
+        <div class="header-row">
+            <h1 class="app-title">PERT/CPM Tool</h1>
+            <div class="project-name-group">
+                <label for="project-name" class="project-label">Project</label>
+                <input
+                    type="text"
+                    id="project-name"
+                    class="project-name-input"
+                    placeholder="Enter project name…"
+                    autocomplete="off"
+                >
+            </div>
+            <button id="btn-finished" class="btn-primary">Finished</button>
+        </div>
     </header>
+
     <main class="app-main">
-        <p class="placeholder">Enter your project activities to get started.</p>
+        <section class="input-section">
+            <div id="error-banner" class="error-banner hidden" role="alert"></div>
+
+            <div class="table-wrap">
+                <table id="activity-table" class="activity-table">
+                    <thead>
+                        <tr>
+                            <th class="col-letter">Letter</th>
+                            <th class="col-description">Description</th>
+                            <th class="col-prereqs">Prerequisites</th>
+                            <th class="col-duration">Duration (days)</th>
+                            <th class="col-cost">Cost/day (R$)</th>
+                            <th class="col-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="diagram-section" class="diagram-section hidden">
+            <h2 class="section-title">Activity-on-Arrow Diagram</h2>
+            <div id="diagram-container" class="diagram-container"></div>
+        </section>
     </main>
+
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+    <script src="/app.js"></script>
 </body>
 </html>

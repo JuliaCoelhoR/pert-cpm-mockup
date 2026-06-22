@@ -7,6 +7,9 @@
     --color-critical: #c0392b;
     --color-non-critical: #7f8c8d;
     --color-primary: #3a5a8c;
+    --color-error-bg: #fdf2f2;
+    --color-error-border: #e8b4b4;
+    --radius: 4px;
 }
 
 *,
@@ -28,22 +31,255 @@ body {
     flex-direction: column;
 }
 
+/* ── Header ──────────────────────────────────────────────────────────────────── */
+
 .app-header {
     background-color: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
-    padding: 0.75rem 1.5rem;
+    padding: 0.625rem 1.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
-.app-header h1 {
-    font-size: 1.25rem;
+.header-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.app-title {
+    font-size: 1.125rem;
     font-weight: 600;
     color: var(--color-text);
     letter-spacing: 0.01em;
+    white-space: nowrap;
 }
+
+.project-name-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.project-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.project-name-input {
+    flex: 1;
+    max-width: 360px;
+    padding: 0.375rem 0.625rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.9375rem;
+    font-family: inherit;
+    color: var(--color-text);
+    background: var(--color-bg);
+    transition: border-color 0.15s;
+}
+
+.project-name-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.btn-primary {
+    padding: 0.4375rem 1.25rem;
+    background-color: var(--color-primary);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.9375rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.15s;
+}
+
+.btn-primary:hover {
+    background-color: #2e4a78;
+}
+
+.btn-primary:active {
+    background-color: #243d62;
+}
+
+/* ── Main layout ─────────────────────────────────────────────────────────────── */
 
 .app-main {
     flex: 1;
-    padding: 2rem 1.5rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────────── */
+
+.error-banner {
+    padding: 0.625rem 1rem;
+    background-color: var(--color-error-bg);
+    border: 1px solid var(--color-error-border);
+    border-radius: var(--radius);
+    color: var(--color-critical);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+/* ── Activity table ──────────────────────────────────────────────────────────── */
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.activity-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9375rem;
+}
+
+.activity-table th {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.activity-table td {
+    border: 1px solid var(--color-border);
+    padding: 0.25rem 0.375rem;
+    vertical-align: middle;
+}
+
+/* Column widths */
+.col-letter    { width: 5rem; }
+.col-description { width: auto; min-width: 160px; }
+.col-prereqs   { width: 10rem; }
+.col-duration  { width: 9rem; }
+.col-cost      { width: 9rem; }
+.col-actions   { width: 3rem; }
+
+/* Letter cell (read-only) */
+.cell-letter {
+    font-weight: 600;
+    text-align: center;
+    color: var(--color-text);
+    padding: 0.375rem 0.5rem;
+    user-select: none;
+}
+
+/* Inputs inside table cells */
+.cell-input {
+    width: 100%;
+    padding: 0.3125rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    font-size: 0.9375rem;
+    font-family: inherit;
+    color: var(--color-text);
+    background: transparent;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.cell-input:hover {
+    border-color: var(--color-border);
+    background: var(--color-bg);
+}
+
+.cell-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    background: var(--color-bg);
+}
+
+.cell-input.cell-error {
+    border-color: var(--color-critical);
+    background-color: var(--color-error-bg);
+}
+
+/* Trailing placeholder row */
+.row-trailing td {
+    background-color: var(--color-surface);
+}
+
+.row-trailing .cell-letter {
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.row-trailing .cell-input-trail {
+    color: var(--color-text-muted);
+}
+
+/* Empty state row */
+.row-empty-state .cell-empty-state {
+    text-align: center;
+    font-style: italic;
+    color: var(--color-text-muted);
+    padding: 1.25rem;
+    background-color: var(--color-surface);
+}
+
+/* Delete button */
+.btn-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: 0 auto;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 1rem;
+    color: var(--color-text-muted);
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.btn-delete:hover {
+    color: var(--color-critical);
+    background-color: var(--color-error-bg);
+}
+
+/* ── Diagram section ─────────────────────────────────────────────────────────── */
+
+.diagram-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.diagram-container {
+    width: 100%;
+    height: 480px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background-color: var(--color-bg);
+    overflow: hidden;
+}
+
+/* ── Utility ─────────────────────────────────────────────────────────────────── */
+
+.hidden {
+    display: none !important;
 }
 
 .placeholder {
