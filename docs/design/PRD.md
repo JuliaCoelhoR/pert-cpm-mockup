@@ -25,7 +25,7 @@ A local desktop application (native window via pywebview) that lets the user:
 10. As a user, I want validation errors to be shown all at once when I click Finished so that I am not interrupted while filling in a row.
 11. As a user, I want invalid cells to be highlighted red and the table to auto-scroll to the first error so that I can find and fix problems quickly.
 12. As a user, I want an error banner showing the count of invalid cells so that I know how much work is left before I can proceed.
-13. As a user, I want cell-level errors to fire on blur so that I am not shown an error while mid-keystroke.
+13. As a user, I want validation errors to appear only when I click Finished so that I am not shown an error while mid-keystroke.
 14. As a user, I want red cell highlights to clear immediately as I start typing so that the UI does not feel punishing while I am actively fixing an error.
 15. As a user, I want to enter prerequisites as a comma-separated list of activity letters (e.g. A, C) so that the input matches standard PERT textbook notation.
 16. As a user, I want invalid prerequisite references to be caught on Finished so that the diagram is never generated from a broken dependency graph.
@@ -83,7 +83,7 @@ A single POST endpoint (e.g. /api/compute) accepts the activity list as JSON and
 
 - Letter assignment: sequential, auto-assigned, read-only, gaps preserved on deletion.
 - Row promotion: all-or-nothing on Finished click.
-- Validation: on blur per cell; full validation sweep on Finished.
+- Validation: full sweep on Finished click via the backend; red highlights clear immediately as the user types.
 - Paste: tab/newline-delimited multi-row clipboard paste, positional column mapping.
 - Deletion: immediate with confirmation pop-up when dangling prerequisite references exist.
 

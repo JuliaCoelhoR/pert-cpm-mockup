@@ -76,7 +76,7 @@ Activities are entered in an editable, spreadsheet-like table before the diagram
 
 ### Validation
 
-- **Timing:** Cell validation fires on blur (when the user leaves the cell). Errors are not shown mid-keystroke.
+- **Timing:** Validation runs on "Finished" click via the backend. Errors are not shown mid-keystroke.
 - **On "Finished" click:**
   - "Finished" is always clickable (never disabled).
   - If errors exist: an error banner shows the count, invalid cells are highlighted red, and the table auto-scrolls and focuses the first invalid cell.
