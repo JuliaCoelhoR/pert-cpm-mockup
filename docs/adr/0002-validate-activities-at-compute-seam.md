@@ -85,7 +85,11 @@ tests.
   On a 422 response the frontend's `mapValidationErrors()` maps each dict to a
   per-cell highlight using `letter` + `field`; errors without those keys become
   banner messages. The frontend `validateRows()` function has been deleted —
-  validation is now authoritative in `validate_activities()` only. Three
+  authoritative validation lives in `validate_activities()` only. A lightweight
+  `validateField()` client-side helper provides per-cell blur feedback (US-13)
+  but is not authoritative: it covers only simple structural rules, while
+  backend-only checks (duplicate letters, cycles, cross-row prerequisite
+  references) remain server-side. Three
   independent error categories remain: (1) network / fetch failures, (2) non-ok
   HTTP responses (mapped to cell highlights or banner via the above), and (3)
   diagram-render failures — each handled by a separate code path in
