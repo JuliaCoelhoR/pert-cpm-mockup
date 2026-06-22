@@ -288,7 +288,7 @@ async function handleFinished() {
             let msg = `Server error (HTTP ${res.status}) — please try again.`;
             try {
                 const err = await res.json();
-                msg = (err.errors ?? [err.error ?? msg]).join(' · ');
+                msg = (err?.errors ?? [err?.error ?? msg]).join(' · ');
             } catch { /* non-JSON error body — keep generic HTTP message */ }
             banner.textContent = msg;
             banner.classList.remove('hidden');
