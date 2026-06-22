@@ -100,13 +100,13 @@ function buildTrailingRow() {
     tr.appendChild(tdLetter);
 
     const trailDefs = [
-        { id: 'trail-description',  type: 'text',   placeholder: 'New activity…' },
-        { id: 'trail-prerequisites', type: 'text',  placeholder: 'e.g. A, C'    },
-        { id: 'trail-duration',     type: 'number', placeholder: '1',   min: '1',  step: '1'    },
-        { id: 'trail-cost',         type: 'number', placeholder: '0.00', min: '0', step: '0.01' },
+        { id: 'trail-description',   field: 'description',   type: 'text',   placeholder: 'New activity…' },
+        { id: 'trail-prerequisites', field: 'prerequisites',  type: 'text',   placeholder: 'e.g. A, C'    },
+        { id: 'trail-duration',      field: 'duration',       type: 'number', placeholder: '1',    min: '1',  step: '1'    },
+        { id: 'trail-cost',          field: 'costPerDay',     type: 'number', placeholder: '0.00', min: '0',  step: '0.01' },
     ];
 
-    trailDefs.forEach(({ id, type, placeholder, min, step }) => {
+    trailDefs.forEach(({ id, field, type, placeholder, min, step }) => {
         const td = document.createElement('td');
         const input = document.createElement('input');
         input.type = type;
@@ -115,7 +115,7 @@ function buildTrailingRow() {
         input.placeholder = placeholder;
         if (min  !== undefined) input.min  = min;
         if (step !== undefined) input.step = step;
-        input.addEventListener('input', () => promoteTrailingRow(id));
+        input.addEventListener('input', () => promoteTrailingRow(field));
         td.appendChild(input);
         tr.appendChild(td);
     });
@@ -126,18 +126,11 @@ function buildTrailingRow() {
 
 // ── Row actions ────────────────────────────────────────────────────────────────
 
-const TRAIL_ID_TO_FIELD = {
-    'trail-description':  'description',
-    'trail-prerequisites': 'prerequisites',
-    'trail-duration':     'duration',
-    'trail-cost':         'costPerDay',
-};
-
-function promoteTrailingRow(triggerId) {
-    const description  = document.getElementById('trail-description')?.value  ?? '';
+function promoteTrailingRow(triggerField) {
+    const description   = document.getElementById('trail-description')?.value   ?? '';
     const prerequisites = document.getElementById('trail-prerequisites')?.value ?? '';
-    const duration     = document.getElementById('trail-duration')?.value     ?? '';
-    const costPerDay   = document.getElementById('trail-cost')?.value         ?? '';
+    const duration      = document.getElementById('trail-duration')?.value      ?? '';
+    const costPerDay    = document.getElementById('trail-cost')?.value          ?? '';
 
     if (!description && !prerequisites && !duration && !costPerDay) return;
 
@@ -147,8 +140,7 @@ function promoteTrailingRow(triggerId) {
     renderTable();
 
     // Re-focus the exact field the user was typing in
-    const focusField = TRAIL_ID_TO_FIELD[triggerId] ?? 'description';
-    const target = document.querySelector(`[data-field="${focusField}"][data-index="${promotedIndex}"]`);
+    const target = document.querySelector(`[data-field="${triggerField}"][data-index="${promotedIndex}"]`);
     if (target) {
         target.focus();
         if (target.value) target.setSelectionRange(target.value.length, target.value.length);
