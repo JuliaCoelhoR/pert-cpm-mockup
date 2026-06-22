@@ -243,13 +243,17 @@ function clearError(input) {
 
 // ── Finished ───────────────────────────────────────────────────────────────────
 
+function showBanner(msg) {
+    const banner = document.getElementById('error-banner');
+    banner.textContent = msg;
+    banner.classList.remove('hidden');
+}
+
 async function handleFinished() {
     applyErrors([]);
 
     if (rows.length === 0) {
-        const banner = document.getElementById('error-banner');
-        banner.textContent = 'Add at least one activity before clicking Finished.';
-        banner.classList.remove('hidden');
+        showBanner('Add at least one activity before clicking Finished.');
         return;
     }
 
@@ -276,31 +280,25 @@ async function handleFinished() {
         });
 
         if (!res.ok) {
-            const banner = document.getElementById('error-banner');
             let msg = `Server error (HTTP ${res.status}) — please try again.`;
             try {
                 const err = await res.json();
                 msg = (err?.errors ?? [err?.error ?? msg]).join(' · ');
             } catch { /* non-JSON error body — keep generic HTTP message */ }
-            banner.textContent = msg;
-            banner.classList.remove('hidden');
+            showBanner(msg);
             return;
         }
 
         data = await res.json();
     } catch {
-        const banner = document.getElementById('error-banner');
-        banner.textContent = 'Could not reach the server — please try again.';
-        banner.classList.remove('hidden');
+        showBanner('Could not reach the server — please try again.');
         return;
     }
 
     try {
         renderDiagram(data);
     } catch {
-        const banner = document.getElementById('error-banner');
-        banner.textContent = 'Failed to render the diagram — please reload the page.';
-        banner.classList.remove('hidden');
+        showBanner('Failed to render the diagram — please reload the page.');
     }
 }
 
