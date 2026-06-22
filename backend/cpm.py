@@ -259,7 +259,7 @@ def validate_activities(activities: list[dict]) -> list[dict]:
     errors: list[dict] = []
     letters_seen: set[str] = set()
 
-    def err(letter, field, message):
+    def err(letter: str | None, field: str | None, message: str) -> None:
         errors.append({"letter": letter, "field": field, "message": message})
 
     for i, a in enumerate(activities):
