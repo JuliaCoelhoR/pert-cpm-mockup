@@ -271,29 +271,43 @@ async function handleFinished() {
         letter:        getLetter(row.letterIndex),
         description:   row.description.trim(),
         prerequisites: row.prerequisites.split(',').map(p => p.trim()).filter(Boolean),
-        duration:      parseInt(row.duration, 10),
+        duration:      Number(row.duration),
         cost_per_day:  row.costPerDay === '' ? 0 : parseFloat(row.costPerDay),
     }));
 
+    let data;
     try {
-        const res  = await fetch('/api/compute', {
+        const res = await fetch('/api/compute', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(payload),
         });
-        const data = await res.json();
 
         if (!res.ok) {
             const banner = document.getElementById('error-banner');
-            banner.textContent = (data.errors ?? [data.error ?? 'An error occurred.']).join(' · ');
+            let msg = `Server error (HTTP ${res.status}) — please try again.`;
+            try {
+                const err = await res.json();
+                msg = (err.errors ?? [err.error ?? msg]).join(' · ');
+            } catch { /* non-JSON error body — keep generic HTTP message */ }
+            banner.textContent = msg;
             banner.classList.remove('hidden');
             return;
         }
 
-        renderDiagram(data);
+        data = await res.json();
     } catch {
         const banner = document.getElementById('error-banner');
         banner.textContent = 'Could not reach the server — please try again.';
+        banner.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        renderDiagram(data);
+    } catch {
+        const banner = document.getElementById('error-banner');
+        banner.textContent = 'Failed to render the diagram — please reload the page.';
         banner.classList.remove('hidden');
     }
 }
@@ -370,7 +384,7 @@ function renderDiagram(data) {
         options
     );
 
-    section.scrollIntoView({ behavior: 'smooth' });
+    section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
