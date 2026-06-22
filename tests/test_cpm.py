@@ -460,14 +460,10 @@ def test_validate_activities_empty_description():
 
 
 def test_validate_activities_bad_duration():
-    assert validate_activities([act("A", "x", [], 0, 0)])   # zero
-    assert validate_activities([act("A", "x", [], -1, 0)])  # negative
-    # float duration is also invalid
     bad = {"letter": "A", "description": "x", "prerequisites": [], "duration": 1.5, "cost_per_day": 0}
-    assert validate_activities([bad])
     for inp in [act("A", "x", [], 0, 0), act("A", "x", [], -1, 0), bad]:
         errs = validate_activities([inp])
-        assert any(e["field"] == "duration" for e in errs)
+        assert any(e["field"] == "duration" for e in errs), f"Expected duration error for input {inp}"
 
 
 def test_validate_activities_negative_cost():
