@@ -254,38 +254,48 @@ def _find_critical_paths(
     return critical_paths, cost_per_critical_path
 
 
-def validate_activities(activities: list[dict]) -> list[str]:
-    errors: list[str] = []
+def validate_activities(activities: list[dict]) -> list[dict]:
+    """Each error: {"letter": str | None, "field": str | None, "message": str}"""
+    errors: list[dict] = []
     letters_seen: set[str] = set()
+
+    def err(letter, field, message):
+        errors.append({"letter": letter, "field": field, "message": message})
 
     for i, a in enumerate(activities):
         missing = _REQUIRED_KEYS - a.keys()
-        label = f"Activity '{a.get('letter', f'#{i + 1}')}'"
+        raw_letter = a.get("letter")
+        label = f"Activity '{raw_letter if isinstance(raw_letter, str) and raw_letter.strip() else f'#{i + 1}'}'"
         if missing:
-            errors.append(f"{label}: missing required fields: {', '.join(sorted(missing))}")
+            err(raw_letter if isinstance(raw_letter, str) else None, None,
+                f"{label}: missing required fields: {', '.join(sorted(missing))}")
             continue
 
         letter = a["letter"]
         if not isinstance(letter, str) or not letter.strip():
-            errors.append(f"{label}: letter must be a non-empty string")
+            err(None, "letter", f"{label}: letter must be a non-empty string")
         elif letter in letters_seen:
-            errors.append(f"{label}: duplicate letter")
+            err(letter, "letter", f"{label}: duplicate letter")
         else:
             letters_seen.add(letter)
 
+        resolved_letter = letter if isinstance(letter, str) and letter.strip() else None
+
         if not isinstance(a["description"], str) or not a["description"].strip():
-            errors.append(f"{label}: description is required")
+            err(resolved_letter, "description", f"{label}: description is required")
 
         if not isinstance(a["prerequisites"], list):
-            errors.append(f"{label}: prerequisites must be a list")
+            err(resolved_letter, "prerequisites", f"{label}: prerequisites must be a list")
 
         dur = a["duration"]
         if isinstance(dur, bool) or not isinstance(dur, int) or dur < 1:
-            errors.append(f"{label}: duration must be a positive integer (minimum 1)")
+            err(resolved_letter, "duration",
+                f"{label}: duration must be a positive integer (minimum 1)")
 
         cpd = a["cost_per_day"]
         if isinstance(cpd, bool) or not isinstance(cpd, (int, float)) or cpd < 0:
-            errors.append(f"{label}: cost_per_day must be a non-negative number")
+            err(resolved_letter, "cost_per_day",
+                f"{label}: cost_per_day must be a non-negative number")
 
     if errors:
         return errors
@@ -294,9 +304,8 @@ def validate_activities(activities: list[dict]) -> list[str]:
     for a in activities:
         for p in a["prerequisites"]:
             if p not in letter_set:
-                errors.append(
-                    f"Activity '{a['letter']}': prerequisite '{p}' does not exist"
-                )
+                err(a["letter"], "prerequisites",
+                    f"Activity '{a['letter']}': prerequisite '{p}' does not exist")
 
     if errors:
         return errors
@@ -320,9 +329,8 @@ def validate_activities(activities: list[dict]) -> list[str]:
                 queue.append(child)
 
     if len(visited) < len(activities):
-        errors.append(
-            "Dependency graph contains a cycle — check prerequisites for circular references"
-        )
+        err(None, None,
+            "Dependency graph contains a cycle — check prerequisites for circular references")
 
     return errors
 
@@ -342,7 +350,7 @@ def compute(activities: list[dict]) -> dict:
 
     errors = validate_activities(activities)
     if errors:
-        raise ValueError("\n".join(errors))
+        raise ValueError("\n".join(e["message"] for e in errors))
 
     levels = _assign_levels(activities)
     from_node, to_node, dummy_acts = _assign_event_numbers(activities, levels)

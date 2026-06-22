@@ -20,9 +20,10 @@ contract for user-supplied data.
 
 ## Decision
 
-Add a public `validate_activities(activities: list[dict]) -> list[str]` function
-in `backend/cpm.py`. It returns a list of human-readable error strings; an
-empty list means valid. It enforces:
+Add a public `validate_activities(activities: list[dict]) -> list[dict]` function
+in `backend/cpm.py`. It returns a list of error dicts
+(`{"letter": str | None, "field": str | None, "message": str}`); an empty list
+means valid. It enforces:
 
 1. **Required keys** — each activity dict must have: `letter`, `description`,
    `prerequisites`, `duration`, `cost_per_day`.
@@ -44,10 +45,13 @@ pass, since they require all keys and letters to be valid.
 
 ### Key design choices and the reasons behind them
 
-**Returns `list[str]`, not structured error objects.** The HTTP layer returns
-a single error payload; the frontend (issue #7) handles field-level highlighting
-client-side before the request is even sent. Structured objects at the server
-would be over-engineering a safety net.
+**Returns `list[dict]`, not plain strings.** Each error dict has the shape
+`{"letter": str | None, "field": str | None, "message": str}`. The frontend maps
+`letter` + `field` to per-cell highlights; errors without a letter or field
+(e.g. cycle detection) surface as banner messages. This eliminates the duplicate
+validation logic that previously lived in the frontend's `validateRows()` and
+also gives the frontend coverage for backend-only checks (duplicate letters,
+circular dependencies) that were previously unhighlighted 422 responses.
 
 **Public, not private.** The function enforces the public interface of
 `compute()` — it is part of the public contract, not an implementation detail.
@@ -66,9 +70,9 @@ specific, readable error messages rather than the generic `"Computation failed
 handler remains for unexpected runtime errors.
 
 **Tests live in `tests/test_cpm.py`** alongside the compute tests. One test
-per check category; each assertion is structural (presence of a keyword in the
-error string) rather than asserting exact message wording, so messages can be
-improved without touching tests.
+per check category; assertions check `e["field"]` and `e["message"]` rather than
+asserting exact message wording, so messages can be improved without touching
+tests.
 
 ## Consequences
 
@@ -76,8 +80,15 @@ improved without touching tests.
   crashing inside the algorithm or hanging indefinitely (cycle case).
 - The `compute()` interface is now honest: every constraint a caller must
   satisfy is documented and enforced in one place.
-- `server.py` returns `{"errors": [...]}` (an array) for validation failures
-  and `{"error": "..."}` (a string) for unexpected runtime errors — the
-  frontend should handle both shapes.
+- `server.py` returns `{"errors": [...]}` (an array of dicts) for validation
+  failures and `{"error": "..."}` (a string) for unexpected runtime errors.
+  On a 422 response the frontend's `mapValidationErrors()` maps each dict to a
+  per-cell highlight using `letter` + `field`; errors without those keys become
+  banner messages. The frontend `validateRows()` function has been deleted —
+  validation is now authoritative in `validate_activities()` only. Three
+  independent error categories remain: (1) network / fetch failures, (2) non-ok
+  HTTP responses (mapped to cell highlights or banner via the above), and (3)
+  diagram-render failures — each handled by a separate code path in
+  `handleFinished()`.
 - Adding a new constraint (e.g. maximum activity count) has one place:
   `validate_activities()`. Its tests are independent of the scheduling tests.

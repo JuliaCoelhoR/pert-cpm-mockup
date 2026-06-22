@@ -432,30 +432,31 @@ def test_validate_activities_missing_required_key():
     bad = {"letter": "A", "description": "x", "prerequisites": [], "duration": 1}
     # cost_per_day missing
     errors = validate_activities([bad])
-    assert any("cost_per_day" in e for e in errors)
+    assert any("cost_per_day" in e["message"] for e in errors)
 
 
 def test_validate_activities_duplicate_letter():
     acts = [act("A", "First", [], 1, 0), act("A", "Second", [], 1, 0)]
     errors = validate_activities(acts)
-    assert any("duplicate" in e.lower() for e in errors)
+    assert any(e["field"] == "letter" and "duplicate" in e["message"].lower() for e in errors)
+    assert any(e["letter"] == "A" for e in errors)
 
 
 def test_validate_activities_empty_letter():
     errors = validate_activities([act("", "x", [], 1, 0)])
-    assert any("letter" in e for e in errors)
+    assert any(e["field"] == "letter" for e in errors)
 
 
 def test_validate_activities_invalid_letter_type():
     bad = {"letter": 42, "description": "x", "prerequisites": [], "duration": 1, "cost_per_day": 0}
     errors = validate_activities([bad])
-    assert any("letter" in e for e in errors)
+    assert any(e["field"] == "letter" for e in errors)
 
 
 def test_validate_activities_empty_description():
     acts = [act("A", "  ", [], 1, 0)]
     errors = validate_activities(acts)
-    assert any("description" in e for e in errors)
+    assert any(e["field"] == "description" and e["letter"] == "A" for e in errors)
 
 
 def test_validate_activities_bad_duration():
@@ -464,23 +465,27 @@ def test_validate_activities_bad_duration():
     # float duration is also invalid
     bad = {"letter": "A", "description": "x", "prerequisites": [], "duration": 1.5, "cost_per_day": 0}
     assert validate_activities([bad])
+    for inp in [act("A", "x", [], 0, 0), act("A", "x", [], -1, 0), bad]:
+        errs = validate_activities([inp])
+        assert any(e["field"] == "duration" for e in errs)
 
 
 def test_validate_activities_negative_cost():
     errors = validate_activities([act("A", "x", [], 1, -0.5)])
-    assert any("cost_per_day" in e for e in errors)
+    assert any(e["field"] == "cost_per_day" and e["letter"] == "A" for e in errors)
 
 
 def test_validate_activities_missing_prerequisite_letter():
     acts = [act("A", "x", ["Z"], 1, 0)]
     errors = validate_activities(acts)
-    assert any("'Z'" in e for e in errors)
+    assert any(e["field"] == "prerequisites" and "'Z'" in e["message"] for e in errors)
+    assert any(e["letter"] == "A" for e in errors)
 
 
 def test_validate_activities_prerequisites_not_list():
     bad = {"letter": "A", "description": "x", "prerequisites": "B", "duration": 1, "cost_per_day": 0}
     errors = validate_activities([bad])
-    assert any("prerequisites" in e for e in errors)
+    assert any(e["field"] == "prerequisites" for e in errors)
 
 
 def test_validate_activities_cycle_detected():
@@ -489,4 +494,5 @@ def test_validate_activities_cycle_detected():
         act("B", "x", ["A"], 1, 0),
     ]
     errors = validate_activities(acts)
-    assert any("cycle" in e.lower() for e in errors)
+    assert any("cycle" in e["message"].lower() for e in errors)
+    assert any(e["letter"] is None and e["field"] is None for e in errors)

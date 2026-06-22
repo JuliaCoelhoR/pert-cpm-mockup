@@ -3,6 +3,7 @@
 /** @type {Array<{letterIndex: number, description: string, prerequisites: string, duration: string, costPerDay: string}>} */
 let rows = [];
 let nextLetterIndex = 0;
+let draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '' };
 /** @type {import('vis-network').Network | null} */
 let network = null;
 
@@ -113,9 +114,10 @@ function buildTrailingRow() {
         input.id = id;
         input.className = 'cell-input cell-input-trail';
         input.placeholder = placeholder;
+        input.value = draftRow[field];
         if (min  !== undefined) input.min  = min;
         if (step !== undefined) input.step = step;
-        input.addEventListener('input', () => promoteTrailingRow(field));
+        input.addEventListener('input', () => { draftRow[field] = input.value; });
         td.appendChild(input);
         tr.appendChild(td);
     });
@@ -126,25 +128,11 @@ function buildTrailingRow() {
 
 // ── Row actions ────────────────────────────────────────────────────────────────
 
-function promoteTrailingRow(triggerField) {
-    const description   = document.getElementById('trail-description')?.value   ?? '';
-    const prerequisites = document.getElementById('trail-prerequisites')?.value ?? '';
-    const duration      = document.getElementById('trail-duration')?.value      ?? '';
-    const costPerDay    = document.getElementById('trail-cost')?.value          ?? '';
-
+function flushDraft() {
+    const { description, prerequisites, duration, costPerDay } = draftRow;
     if (!description && !prerequisites && !duration && !costPerDay) return;
-
-    const promotedIndex = rows.length;
     rows.push({ letterIndex: nextLetterIndex++, description, prerequisites, duration, costPerDay });
-
-    renderTable();
-
-    // Re-focus the exact field the user was typing in
-    const target = document.querySelector(`[data-field="${triggerField}"][data-index="${promotedIndex}"]`);
-    if (target) {
-        target.focus();
-        if (target.value) target.setSelectionRange(target.value.length, target.value.length);
-    }
+    draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '' };
 }
 
 function deleteRow(index) {
@@ -176,45 +164,46 @@ function deleteRow(index) {
 
 // ── Validation ─────────────────────────────────────────────────────────────────
 
-function validateRows() {
-    const errors = [];
-    const activeLetters = getActiveLetters();
+function mapValidationErrors(backendErrors) {
+    const fieldErrors = [];
+    const bannerMsgs  = [];
 
-    rows.forEach((row, index) => {
-        const label = getLetter(row.letterIndex);
+    const fieldMap = {
+        description:   'description',
+        duration:      'duration',
+        cost_per_day:  'costPerDay',
+        prerequisites: 'prerequisites',
+        letter:        null,
+    };
 
-        if (!row.description.trim()) {
-            errors.push({ index, field: 'description', msg: `${label}: description is required` });
+    backendErrors.forEach(e => {
+        if (!e.letter || !e.field) {
+            bannerMsgs.push(e.message);
+            return;
         }
-
-        if (row.duration === '' || row.duration === null || row.duration === undefined) {
-            errors.push({ index, field: 'duration', msg: `${label}: duration is required` });
-        } else {
-            const d = Number(row.duration);
-            if (!Number.isInteger(d) || d < 1) {
-                errors.push({ index, field: 'duration', msg: `${label}: duration must be a positive integer (minimum 1)` });
-            }
+        const frontendField = fieldMap[e.field];
+        if (!frontendField) {
+            bannerMsgs.push(e.message);
+            return;
         }
-
-        if (row.costPerDay !== '' && row.costPerDay !== null && row.costPerDay !== undefined) {
-            const c = Number(row.costPerDay);
-            if (isNaN(c) || c < 0) {
-                errors.push({ index, field: 'costPerDay', msg: `${label}: cost/day must be a non-negative number` });
-            }
+        const index = rows.findIndex(r => getLetter(r.letterIndex) === e.letter);
+        if (index === -1) {
+            bannerMsgs.push(e.message);
+            return;
         }
-
-        row.prerequisites
-            .split(',')
-            .map(p => p.trim())
-            .filter(Boolean)
-            .forEach(p => {
-                if (!activeLetters.has(p)) {
-                    errors.push({ index, field: 'prerequisites', msg: `${label}: prerequisite "${p}" does not exist` });
-                }
-            });
+        fieldErrors.push({ index, field: frontendField, msg: e.message });
     });
 
-    return errors;
+    if (bannerMsgs.length > 0) {
+        if (fieldErrors.length === 0) {
+            showBanner(bannerMsgs.join(' · '));
+            return [];
+        }
+        // Show global messages in the banner alongside per-cell highlights
+        showBanner(bannerMsgs.join(' · '));
+    }
+
+    return fieldErrors;
 }
 
 function applyErrors(errors) {
@@ -250,18 +239,15 @@ function showBanner(msg) {
 }
 
 async function handleFinished() {
-    applyErrors([]);
+    flushDraft();
 
     if (rows.length === 0) {
         showBanner('Add at least one activity before clicking Finished.');
         return;
     }
 
-    const errors = validateRows();
-    if (errors.length > 0) {
-        applyErrors(errors);
-        return;
-    }
+    renderTable();
+    applyErrors([]);
 
     const payload = rows.map(row => ({
         letter:        getLetter(row.letterIndex),
@@ -280,11 +266,20 @@ async function handleFinished() {
         });
 
         if (!res.ok) {
-            let msg = `Server error (HTTP ${res.status}) — please try again.`;
-            try {
-                const err = await res.json();
-                msg = (err?.errors ?? [err?.error ?? msg]).join(' · ');
-            } catch { /* non-JSON error body — keep generic HTTP message */ }
+            let body = null;
+            try { body = await res.json(); } catch { /* non-JSON body */ }
+
+            if (res.status === 422 && body !== null) {
+                const fieldErrors = mapValidationErrors(body.errors ?? []);
+                if (fieldErrors.length > 0) {
+                    applyErrors(fieldErrors);
+                    return;
+                }
+            }
+
+            const msg = body?.errors?.map?.(e => e.message ?? e).join(' · ')
+                ?? body?.error
+                ?? `Server error (HTTP ${res.status}) — please try again.`;
             showBanner(msg);
             return;
         }
