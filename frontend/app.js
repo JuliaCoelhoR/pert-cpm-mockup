@@ -79,8 +79,10 @@ function buildRealRow(row, index) {
             const error = validateField(field, input.value, row);
             if (error) {
                 input.classList.add('cell-error');
+                input.title = error;
             } else {
                 input.classList.remove('cell-error');
+                input.title = '';
             }
         });
         td.appendChild(input);
@@ -272,6 +274,7 @@ function applyErrors(errors) {
 
 function clearError(input) {
     input.classList.remove('cell-error');
+    input.title = '';
 }
 
 // ── Finished ───────────────────────────────────────────────────────────────────
