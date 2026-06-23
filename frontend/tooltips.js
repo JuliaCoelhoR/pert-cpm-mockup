@@ -22,16 +22,11 @@ export function buildActivityTooltipHtml(activity) {
 </div>`;
 }
 
-export function buildEventTooltipHtml(event, activities) {
-    const incoming = activities
-        .filter(a => !a.dummy && a.to_node === event.number)
-        .map(a => a.letter)
-        .join(', ') || '—';
-
-    const outgoing = activities
-        .filter(a => !a.dummy && a.from_node === event.number)
-        .map(a => a.letter)
-        .join(', ') || '—';
+export function buildEventTooltipHtml(event) {
+    const incoming = (event.incoming && event.incoming.length)
+        ? event.incoming.join(', ') : '—';
+    const outgoing = (event.outgoing && event.outgoing.length)
+        ? event.outgoing.join(', ') : '—';
 
     const slackClass = event.slack === 0 ? ' tooltip-slack-critical' : '';
 

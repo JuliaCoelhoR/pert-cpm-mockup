@@ -23,7 +23,7 @@ function makeActivity(overrides = {}) {
 }
 
 function makeEvent(overrides = {}) {
-    return { number: 2, EET: 5, LET: 5, slack: 0, ...overrides };
+    return { number: 2, EET: 5, LET: 5, slack: 0, incoming: [], outgoing: [], ...overrides };
 }
 
 // ── buildActivityTooltipHtml ───────────────────────────────────────────────────
@@ -91,48 +91,43 @@ describe('buildActivityTooltipHtml', () => {
 // ── buildEventTooltipHtml ──────────────────────────────────────────────────────
 
 describe('buildEventTooltipHtml', () => {
-    const activities = [
-        makeActivity({ letter: 'A', from_node: 1, to_node: 2 }),
-        makeActivity({ letter: 'B', from_node: 2, to_node: 3 }),
-    ];
-
     it('contains the event number', () => {
-        const html = buildEventTooltipHtml(makeEvent({ number: 2 }), activities);
+        const html = buildEventTooltipHtml(makeEvent({ number: 2 }));
         expect(html).toContain('2');
     });
 
     it('contains EET', () => {
-        const html = buildEventTooltipHtml(makeEvent({ EET: 5 }), activities);
+        const html = buildEventTooltipHtml(makeEvent({ EET: 5 }));
         expect(html).toContain('5');
     });
 
     it('contains LET', () => {
-        const html = buildEventTooltipHtml(makeEvent({ LET: 7 }), activities);
+        const html = buildEventTooltipHtml(makeEvent({ LET: 7 }));
         expect(html).toContain('7');
     });
 
     it('contains the slack value', () => {
-        const html = buildEventTooltipHtml(makeEvent({ slack: 3 }), activities);
+        const html = buildEventTooltipHtml(makeEvent({ slack: 3 }));
         expect(html).toContain('3');
     });
 
     it('marks slack = 0 with a highlight class', () => {
-        const html = buildEventTooltipHtml(makeEvent({ slack: 0 }), activities);
+        const html = buildEventTooltipHtml(makeEvent({ slack: 0 }));
         expect(html).toContain('critical');
     });
 
     it('does not mark slack > 0 with a highlight class', () => {
-        const html = buildEventTooltipHtml(makeEvent({ slack: 2 }), activities);
+        const html = buildEventTooltipHtml(makeEvent({ slack: 2 }));
         expect(html).not.toMatch(/slack.*critical|critical.*slack/i);
     });
 
-    it('lists incoming activities (to_node matches event number)', () => {
-        const html = buildEventTooltipHtml(makeEvent({ number: 2 }), activities);
+    it('lists incoming activities', () => {
+        const html = buildEventTooltipHtml(makeEvent({ number: 2, incoming: ['A'] }));
         expect(html).toContain('A');
     });
 
-    it('lists outgoing activities (from_node matches event number)', () => {
-        const html = buildEventTooltipHtml(makeEvent({ number: 2 }), activities);
+    it('lists outgoing activities', () => {
+        const html = buildEventTooltipHtml(makeEvent({ number: 2, outgoing: ['B'] }));
         expect(html).toContain('B');
     });
 });

@@ -372,7 +372,7 @@ function renderDiagram(data) {
             color: eventColor(ev.number, criticalNodeIds),
             font:        { color: '#2c2c2c', size: 14, face: 'system-ui, sans-serif' },
             borderWidth: 2,
-            title:       makeTooltipElement(buildEventTooltipHtml(ev, data.activities)),
+            title:       makeTooltipElement(buildEventTooltipHtml(ev)),
         }))
     );
 

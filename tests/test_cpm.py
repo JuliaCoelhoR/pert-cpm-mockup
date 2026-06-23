@@ -318,7 +318,7 @@ def test_schedule_activities_computes_floats_and_cost():
 def test_compute_events_reports_slack_and_sorted_order():
     EET = {1: 0.0, 3: 5.0, 2: 3.0}
     LET = {1: 0.0, 3: 5.0, 2: 4.0}
-    events = _compute_events(EET, LET)
+    events = _compute_events(EET, LET, [])
     numbers = [e["number"] for e in events]
     assert numbers == [1, 2, 3]
     event2 = next(e for e in events if e["number"] == 2)

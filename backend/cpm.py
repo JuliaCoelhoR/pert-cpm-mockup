@@ -209,6 +209,7 @@ def _schedule_activities(
 def _compute_events(
     EET: dict[int, float],
     LET: dict[int, float],
+    result_activities: list[dict],
 ) -> list[dict]:
     return [
         {
@@ -216,6 +217,10 @@ def _compute_events(
             "EET": EET[n],
             "LET": LET[n],
             "slack": LET[n] - EET[n],
+            "incoming": [a["letter"] for a in result_activities
+                         if not a.get("dummy") and a["to_node"] == n],
+            "outgoing": [a["letter"] for a in result_activities
+                         if not a.get("dummy") and a["from_node"] == n],
         }
         for n in sorted(EET.keys())
     ]
@@ -371,7 +376,7 @@ def compute(activities: list[dict]) -> dict:
     for ra in result_activities:
         ra["dummy"] = ra["letter"] in dummy_letters
 
-    result_events = _compute_events(EET, LET)
+    result_events = _compute_events(EET, LET, result_activities)
     critical_paths, cost_per_critical_path = _find_critical_paths(
         result_activities, _START_NODE, end_node
     )
