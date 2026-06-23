@@ -64,9 +64,10 @@ Activities are entered in an editable, spreadsheet-like table before the diagram
 
 ### Row Lifecycle
 
-- **Adding rows:** Auto-append. A trailing empty row is always visible at the bottom. It is greyed out with placeholder text (e.g. "New activity…") to signal affordance.
-- **Draft persistence:** trailing row values typed before a delete are preserved in `draftRow` and restored after `renderTable()`. This avoids surprising loss of in-progress input. Exception: when the last committed row is deleted, `draftRow` is cleared so the trailing row renders empty.
-- **Promoting rows:** No row is a real activity until the user clicks **Finished**. Promotion is all-or-nothing — if any row fails validation, nothing is promoted.
+- **Adding rows:** Auto-append. At least one trailing empty row is always visible at the bottom, greyed out with placeholder text (e.g. "New activity…") to signal affordance. As soon as the user starts typing in the last trailing row, a new empty trailing row appears immediately below it — so there is always an unfilled row ready at the bottom.
+- **Draft persistence:** Typed-but-uncommitted trailing row values are held in `draftRows[]` (one object per draft row) and restored by `renderTable()`. This avoids surprising loss of in-progress input. Exception: when the last committed row is deleted, `draftRows` is reset to a single empty draft so the trailing area renders empty.
+- **Promoting rows:** No row is a real activity until the user clicks **Finished**. `flushAllDrafts()` commits all non-empty draft rows at that point. Promotion is all-or-nothing — if any row fails validation, nothing is promoted.
+- **Auto-removing empty draft rows:** If the user clears every field of a trailing draft row and moves focus away (blur), that row is silently removed. The last trailing row (the empty cursor) is never removed this way. This only applies to draft trailing rows; committed real rows are unaffected by blur.
 - **Deleting rows:** Immediate on clicking the row's trash icon. If the deletion would leave dangling prerequisite references in other rows, a confirmation pop-up explains the situation and asks "are you sure?" before proceeding.
 - **Reordering:** Not supported. Rows stay in insertion order.
 
@@ -86,7 +87,7 @@ Activities are entered in an editable, spreadsheet-like table before the diagram
 
 ### Empty State
 
-When the table has zero rows (fresh load, or all rows deleted), a non-deletable placeholder message row is shown (e.g. "No activities yet — start typing to add one").
+When there are no committed rows and all draft trailing rows are empty (fresh load, or after all rows and drafts are cleared), a placeholder message is shown **above the table** (not as a row inside it): "No activities yet — start typing to add one". The message hides as soon as any draft row has content, and reappears if the user clears everything again.
 
 ### Keyboard Navigation
 

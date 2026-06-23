@@ -18,7 +18,7 @@ A local desktop application (native window via pywebview) that lets the user:
 3. As a user, I want an editable table of activities so that I can enter all project data in one place before generating the diagram.
 4. As a user, I want each activity to be automatically assigned a letter (A, B, C...) so that I can reference activities unambiguously in the prerequisites column.
 5. As a user, I want the activity letter to be read-only and stable so that prerequisites I have already typed are not silently broken by a rename.
-6. As a user, I want a trailing empty row to appear automatically at the bottom of the table so that I can add a new activity by simply typing without clicking an Add button.
+6. As a user, I want a trailing empty row to appear automatically at the bottom of the table so that I can add a new activity by simply typing without clicking an Add button. As soon as I start typing in the last trailing row, a new empty trailing row appears immediately below it, so there is always an unfilled row ready.
 7. As a user, I want the trailing empty row to look visually distinct (greyed out, placeholder text) so that I know it is not yet a real activity.
 8. As a user, I want all rows to be promoted to real activities only when I click Finished so that I can freely edit draft data without side effects.
 9. As a user, I want Finished to always be clickable so that I can request validation feedback at any time.
@@ -35,20 +35,21 @@ A local desktop application (native window via pywebview) that lets the user:
 20. As a user, I want to paste multiple rows from a spreadsheet into the table so that I can import activity data I have already prepared elsewhere.
 21. As a user, I want the Duration field to accept only positive integers (minimum 1) so that impossible durations are caught immediately.
 22. As a user, I want the Cost/day field to accept positive decimals (minimum 0) so that zero-cost activities are valid and cent-level precision is supported.
-23. As a user, I want to see a placeholder message when the table is empty so that I know how to start adding activities.
-24. As a user, I want pressing Tab in the last cell of the table to keep focus there so that navigation stays predictable.
-25. As a user, I want the diagram to be laid out automatically based on dependency depth so that I never have to place nodes by hand.
-26. As a user, I want the diagram to use Activity-on-Arrow (AOA) notation so that arrows represent activities and numbered circles represent project states (events).
-27. As a user, I want each arrow to show the activity letter on one side and the duration in days on the other side so that I can read the network at a glance.
-28. As a user, I want the critical path arrows and nodes to be highlighted in red so that the critical path is immediately obvious.
-29. As a user, I want non-critical arrows to appear in grey so that they are clearly distinguished from critical ones.
-30. As a user, I want all paths that tie for the maximum project duration to be highlighted as critical so that I am not misled when there are multiple critical paths.
-31. As a user, I want to hover over an activity arrow and see a tooltip with: Activity Letter + Description, Duration, Cost/day, Total activity cost, ES, EF, LS, LF, Free Float, Total Float, and a Critical path indicator so that I can read all scheduling values without leaving the diagram.
-32. As a user, I want to hover over a node (event) and see a tooltip with: Event number, EET, LET, Slack (highlighted if zero), and the list of activities entering and leaving that event so that I can understand the state of the project at any event.
-33. As a user, I want the summary panel to show each critical path as a node sequence (e.g. 1 -> 3 -> 5 -> 7) so that I can communicate the critical path clearly.
-34. As a user, I want the summary panel to show project-level stats (Total Activities, Critical Activities, Total Nodes, Minimal Project Duration, Total Cost, Total Cost per Critical Path) so that I have a quick overview without reading the full activity table. Total Activities and Critical Activities exclude automatically-inserted dummy activities.
-35. As a user, I want the summary panel to include a scrollable activity table with columns Letter, Description, From Node, To Node, Duration, Cost/day, Total Cost, ES, EF, LS, LF, Free Float, Total Float, and Critical flag so that I can compare activities side by side. Dummy activities are excluded from this table.
-36. As a user, I want the application to use a light colour scheme (light background, charcoal text) so that the diagram is easy to read under normal lighting.
+23. As a user, I want to see a placeholder message above the table when there are no activities so that I know how to start adding activities. The message disappears as soon as I start typing and reappears if I clear everything again.
+24. As a user, I want an empty trailing draft row to disappear when I clear all its fields and move focus away so that accidental blank rows do not accumulate. The last trailing row (the empty cursor) is never removed this way.
+25. As a user, I want pressing Tab in the last cell of the table to keep focus there so that navigation stays predictable.
+26. As a user, I want the diagram to be laid out automatically based on dependency depth so that I never have to place nodes by hand.
+27. As a user, I want the diagram to use Activity-on-Arrow (AOA) notation so that arrows represent activities and numbered circles represent project states (events).
+28. As a user, I want each arrow to show the activity letter on one side and the duration in days on the other side so that I can read the network at a glance.
+29. As a user, I want the critical path arrows and nodes to be highlighted in red so that the critical path is immediately obvious.
+30. As a user, I want non-critical arrows to appear in grey so that they are clearly distinguished from critical ones.
+31. As a user, I want all paths that tie for the maximum project duration to be highlighted as critical so that I am not misled when there are multiple critical paths.
+32. As a user, I want to hover over an activity arrow and see a tooltip with: Activity Letter + Description, Duration, Cost/day, Total activity cost, ES, EF, LS, LF, Free Float, Total Float, and a Critical path indicator so that I can read all scheduling values without leaving the diagram.
+33. As a user, I want to hover over a node (event) and see a tooltip with: Event number, EET, LET, Slack (highlighted if zero), and the list of activities entering and leaving that event so that I can understand the state of the project at any event.
+34. As a user, I want the summary panel to show each critical path as a node sequence (e.g. 1 -> 3 -> 5 -> 7) so that I can communicate the critical path clearly.
+35. As a user, I want the summary panel to show project-level stats (Total Activities, Critical Activities, Total Nodes, Minimal Project Duration, Total Cost, Total Cost per Critical Path) so that I have a quick overview without reading the full activity table. Total Activities and Critical Activities exclude automatically-inserted dummy activities.
+36. As a user, I want the summary panel to include a scrollable activity table with columns Letter, Description, From Node, To Node, Duration, Cost/day, Total Cost, ES, EF, LS, LF, Free Float, Total Float, and Critical flag so that I can compare activities side by side. Dummy activities are excluded from this table.
+37. As a user, I want the application to use a light colour scheme (light background, charcoal text) so that the diagram is easy to read under normal lighting.
 
 ## Implementation Decisions
 

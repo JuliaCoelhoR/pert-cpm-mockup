@@ -10,9 +10,17 @@ import { mapValidationErrors } from './mapErrors.js';
 /** @type {Array<{letterIndex: number, description: string, prerequisites: string, duration: string, costPerDay: string}>} */
 let rows = [];
 let nextLetterIndex = 0;
-let draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '' };
+let draftRows = [emptyDraft()];
 /** @type {import('vis-network').Network | null} */
 let network = null;
+
+function emptyDraft() {
+    return { description: '', prerequisites: '', duration: '', costPerDay: '' };
+}
+
+function isDraftEmpty(draft) {
+    return !draft.description && !draft.prerequisites && !draft.duration && !draft.costPerDay;
+}
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
 
@@ -22,24 +30,21 @@ function getActiveLetters() {
 
 // ── Table rendering ────────────────────────────────────────────────────────────
 
+function updateEmptyState() {
+    const el = document.getElementById('activities-empty');
+    if (!el) return;
+    const anyDraftHasContent = draftRows.some(d => !isDraftEmpty(d));
+    el.classList.toggle('hidden', rows.length > 0 || anyDraftHasContent);
+}
+
 function renderTable() {
     const tbody = document.getElementById('table-body');
     tbody.innerHTML = '';
 
-    if (rows.length === 0) {
-        const tr = document.createElement('tr');
-        tr.className = 'row-empty-state';
-        const td = document.createElement('td');
-        td.colSpan = 6;
-        td.className = 'cell-empty-state';
-        td.textContent = 'No activities yet — start typing to add one';
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-    } else {
-        rows.forEach((row, index) => tbody.appendChild(buildRealRow(row, index)));
-    }
+    rows.forEach((row, index) => tbody.appendChild(buildRealRow(row, index)));
+    draftRows.forEach((_, draftIndex) => tbody.appendChild(buildTrailingRow(draftIndex)));
 
-    tbody.appendChild(buildTrailingRow());
+    updateEmptyState();
 }
 
 function buildRealRow(row, index) {
@@ -101,33 +106,49 @@ function buildRealRow(row, index) {
     return tr;
 }
 
-function buildTrailingRow() {
+function buildTrailingRow(draftIndex) {
+    const draft = draftRows[draftIndex];
     const tr = document.createElement('tr');
     tr.className = 'row-trailing';
 
     const tdLetter = document.createElement('td');
     tdLetter.className = 'cell-letter cell-letter-dim';
-    tdLetter.textContent = getLetter(nextLetterIndex);
+    tdLetter.textContent = getLetter(nextLetterIndex + draftIndex);
     tr.appendChild(tdLetter);
 
     const trailDefs = [
-        { id: 'trail-description',   field: 'description',   type: 'text',   placeholder: 'New activity…' },
-        { id: 'trail-prerequisites', field: 'prerequisites',  type: 'text',   placeholder: 'e.g. A, C'    },
-        { id: 'trail-duration',      field: 'duration',       type: 'number', placeholder: '1',    min: '1',  step: '1'    },
-        { id: 'trail-cost',          field: 'costPerDay',     type: 'number', placeholder: '0.00', min: '0',  step: '0.01' },
+        { id: draftIndex === 0 ? 'trail-description'   : null, field: 'description',  type: 'text',   placeholder: 'New activity…' },
+        { id: draftIndex === 0 ? 'trail-prerequisites' : null, field: 'prerequisites', type: 'text',   placeholder: 'e.g. A, C'    },
+        { id: draftIndex === 0 ? 'trail-duration'      : null, field: 'duration',      type: 'number', placeholder: '1',    min: '1',  step: '1'    },
+        { id: draftIndex === 0 ? 'trail-cost'          : null, field: 'costPerDay',    type: 'number', placeholder: '0.00', min: '0',  step: '0.01' },
     ];
 
     trailDefs.forEach(({ id, field, type, placeholder, min, step }) => {
         const td = document.createElement('td');
         const input = document.createElement('input');
         input.type = type;
-        input.id = id;
+        if (id) input.id = id;
         input.className = 'cell-input cell-input-trail';
         input.placeholder = placeholder;
-        input.value = draftRow[field];
+        input.value = draft[field];
         if (min  !== undefined) input.min  = min;
         if (step !== undefined) input.step = step;
-        input.addEventListener('input', () => { draftRow[field] = input.value; });
+        input.addEventListener('input', () => {
+            const wasEmpty = isDraftEmpty(draftRows[draftIndex]);
+            draftRows[draftIndex][field] = input.value;
+            updateEmptyState();
+            if (wasEmpty && input.value && draftIndex === draftRows.length - 1) {
+                draftRows.push(emptyDraft());
+                document.getElementById('table-body').appendChild(buildTrailingRow(draftRows.length - 1));
+            }
+        });
+        input.addEventListener('blur', () => {
+            if (draftIndex < draftRows.length - 1 && isDraftEmpty(draftRows[draftIndex])) {
+                draftRows.splice(draftIndex, 1);
+                tr.remove();
+                updateEmptyState();
+            }
+        });
         input.addEventListener('paste', handlePaste);
         if (id === 'trail-cost') {
             input.addEventListener('keydown', e => {
@@ -144,11 +165,13 @@ function buildTrailingRow() {
 
 // ── Row actions ────────────────────────────────────────────────────────────────
 
-function flushDraft() {
-    const { description, prerequisites, duration, costPerDay } = draftRow;
-    if (!description && !prerequisites && !duration && !costPerDay) return;
-    rows.push({ letterIndex: nextLetterIndex++, description, prerequisites, duration, costPerDay });
-    draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '' };
+function flushAllDrafts() {
+    draftRows.forEach(draft => {
+        if (isDraftEmpty(draft)) return;
+        const { description, prerequisites, duration, costPerDay } = draft;
+        rows.push({ letterIndex: nextLetterIndex++, description, prerequisites, duration, costPerDay });
+    });
+    draftRows = [emptyDraft()];
 }
 
 function deleteRow(index) {
@@ -176,7 +199,7 @@ function deleteRow(index) {
 
     rows.splice(index, 1);
     if (rows.length === 0) {
-        draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '' };
+        draftRows = [emptyDraft()];
     }
     renderTable();
 }
@@ -188,7 +211,7 @@ function handlePaste(e) {
     if (!text.includes('\t') && !text.includes('\n')) return;
 
     e.preventDefault();
-    flushDraft();
+    flushAllDrafts();
 
     parseTabPaste(text).forEach(({ description, prerequisites, duration, costPerDay }) => {
         rows.push({ letterIndex: nextLetterIndex++, description, prerequisites, duration, costPerDay });
@@ -234,7 +257,7 @@ function showBanner(msg) {
 }
 
 async function handleFinished() {
-    flushDraft();
+    flushAllDrafts();
 
     if (rows.length === 0) {
         showBanner('Add at least one activity before clicking Finished.');

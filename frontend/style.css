@@ -221,13 +221,11 @@ body {
     color: var(--color-text-muted);
 }
 
-/* Empty state row */
-.row-empty-state .cell-empty-state {
-    text-align: center;
+/* Empty state message */
+.activities-empty {
     font-style: italic;
     color: var(--color-text-muted);
-    padding: 1.25rem;
-    background-color: var(--color-surface);
+    margin: 0 0 0.75rem 0;
 }
 
 /* Delete button */
