@@ -79,10 +79,10 @@ Activities are entered in an editable, spreadsheet-like table before the diagram
 ### Validation
 
 - **Timing:** Cell validation fires on blur (when the user leaves a cell). Errors are not shown mid-keystroke. Authoritative validation runs server-side on "Finished" click; the blur feedback is a lightweight UX layer only.
-- **On "Finished" click:**
-  - "Finished" is always clickable (never disabled).
-  - If errors exist: an error banner shows the count, invalid cells are highlighted red, and the table auto-scrolls and focuses the first invalid cell.
-  - Fixing an error: the red highlight on a cell clears immediately as the user types into it. The banner persists until the next "Finished" click.
+- **On "Finished" click (two-phase):**
+  1. **Validate first (preview phase):** `handleFinished` builds a preview list of all rows — committed rows plus any non-empty draft trailing rows — and runs `validateAllRows` against it. If errors are found, they are shown immediately (banner + per-cell highlights on both committed and draft rows) and the function returns. Draft rows are **not** promoted; they remain as trailing rows so the user can continue editing or discard them.
+  2. **Flush only on success:** If the preview passes, `flushAllDrafts()` is called to promote drafts to real rows, the table re-renders, and the request is sent to the backend. "Finished" is always clickable (never disabled).
+  - Fixing an error: the red highlight on a cell clears immediately as the user types into it (applies to both committed and draft row cells). The banner persists until the next "Finished" click.
 - **No per-row save.** Edits commit on blur; the only save action is the table-level "Finished" button.
 
 ### Empty State

@@ -133,9 +133,12 @@ function buildTrailingRow(draftIndex) {
         input.value = draft[field];
         if (min  !== undefined) input.min  = min;
         if (step !== undefined) input.step = step;
+        input.dataset.field      = field;
+        input.dataset.draftIndex = String(draftIndex);
         input.addEventListener('input', () => {
             const wasEmpty = isDraftEmpty(draftRows[draftIndex]);
             draftRows[draftIndex][field] = input.value;
+            clearError(input);
             updateEmptyState();
             if (wasEmpty && input.value && draftIndex === draftRows.length - 1) {
                 draftRows.push(emptyDraft());
@@ -222,11 +225,13 @@ function handlePaste(e) {
 
 // ── Validation ─────────────────────────────────────────────────────────────────
 
-function applyErrors(errors) {
+function applyErrors(errors, draftOffset = Infinity) {
     document.querySelectorAll('.cell-input.cell-error').forEach(el => el.classList.remove('cell-error'));
 
     errors.forEach(({ index, field }) => {
-        const input = document.querySelector(`[data-field="${field}"][data-index="${index}"]`);
+        const input = index < draftOffset
+            ? document.querySelector(`[data-field="${field}"][data-index="${index}"]`)
+            : document.querySelector(`[data-field="${field}"][data-draft-index="${index - draftOffset}"]`);
         if (input) input.classList.add('cell-error');
     });
 
@@ -236,7 +241,7 @@ function applyErrors(errors) {
             ? `1 cell has an error — fix it before continuing.`
             : `${errors.length} cells have errors — fix them before continuing.`;
         banner.classList.remove('hidden');
-        document.querySelector('.cell-input.cell-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.querySelector('.cell-input.cell-error')?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
         document.querySelector('.cell-input.cell-error')?.focus();
     } else {
         banner.classList.add('hidden');
@@ -257,21 +262,31 @@ function showBanner(msg) {
 }
 
 async function handleFinished() {
-    flushAllDrafts();
+    const nonEmptyDrafts = draftRows.filter(d => !isDraftEmpty(d));
+    const previewRows = [
+        ...rows,
+        ...nonEmptyDrafts.map((d, i) => ({
+            letterIndex:   nextLetterIndex + i,
+            description:   d.description,
+            prerequisites: d.prerequisites,
+            duration:      d.duration,
+            costPerDay:    d.costPerDay,
+        })),
+    ];
 
-    if (rows.length === 0) {
+    if (previewRows.length === 0) {
         showBanner('Add at least one activity before clicking Finished.');
         return;
     }
 
-    renderTable();
-
-    const frontendErrors = validateAllRows(rows);
+    const frontendErrors = validateAllRows(previewRows);
     if (frontendErrors.length > 0) {
-        applyErrors(frontendErrors);
+        applyErrors(frontendErrors, rows.length);
         return;
     }
 
+    flushAllDrafts();
+    renderTable();
     applyErrors([]);
 
     const payload = rows.map(row => ({

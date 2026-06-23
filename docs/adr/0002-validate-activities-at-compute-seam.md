@@ -48,10 +48,12 @@ pass, since they require all keys and letters to be valid.
 **Returns `list[dict]`, not plain strings.** Each error dict has the shape
 `{"letter": str | None, "field": str | None, "message": str}`. The frontend maps
 `letter` + `field` to per-cell highlights; errors without a letter or field
-(e.g. cycle detection) surface as banner messages. This eliminates the duplicate
-validation logic that previously lived in the frontend's `validateRows()` and
-also gives the frontend coverage for backend-only checks (duplicate letters,
-circular dependencies) that were previously unhighlighted 422 responses.
+(e.g. cycle detection) surface as banner messages. This replaces the
+monolithic frontend `validateRows()` function — the old function was the sole
+validation path; the new design gives the backend authority over all
+constraints while the frontend's `validateAllRows()` pre-flight handles
+per-row structural errors locally for responsiveness, and the backend covers
+cross-list checks (cycles) that the frontend never sees.
 
 **Public, not private.** The function enforces the public interface of
 `compute()` — it is part of the public contract, not an implementation detail.
@@ -84,15 +86,28 @@ tests.
   failures and `{"error": "..."}` (a string) for unexpected runtime errors.
   On a 422 response the frontend's `mapValidationErrors()` maps each dict to a
   per-cell highlight using `letter` + `field`; errors without those keys become
-  banner messages. The frontend `validateRows()` function has been deleted —
-  authoritative validation lives in `validate_activities()` only. A lightweight
-  `validateField()` client-side helper provides per-cell blur feedback (US-13)
-  but is not authoritative: it covers only simple structural rules, while
-  backend-only checks (duplicate letters, cycles, cross-row prerequisite
-  references) remain server-side. Three
-  independent error categories remain: (1) network / fetch failures, (2) non-ok
-  HTTP responses (mapped to cell highlights or banner via the above), and (3)
-  diagram-render failures — each handled by a separate code path in
-  `handleFinished()`.
+  banner messages.
+
+  **Two-layer validation in `handleFinished()`.** The frontend `validateRows()`
+  that existed before this ADR has been replaced by two distinct client-side
+  helpers with explicitly narrower scopes:
+
+  1. `validateField(field, value, activeLetters)` — per-cell structural check
+     used for blur feedback (US-13). Covers emptiness, type constraints
+     (duration integer, cost decimal), and unknown prerequisite letters.
+  2. `validateAllRows(rows)` — runs the same per-row structural checks over
+     every row as a pre-flight sweep in `handleFinished()`. When errors are
+     found it displays them immediately and returns early, avoiding an
+     unnecessary network round-trip for clear per-row mistakes.
+
+  The backend remains **authoritative** and is always the last word on
+  validity: `server.py` calls `validate_activities()` before `compute()`,
+  which means cycle detection and any future cross-list constraints are
+  exclusively server-side and are reached whenever the frontend pre-flight
+  passes. Duplicate letters cannot occur (letters are auto-assigned), so that
+  backend check functions as defence-in-depth only. Three independent error
+  categories remain: (1) network / fetch failures, (2) non-ok HTTP responses
+  (mapped to cell highlights or banner via the above), and (3) diagram-render
+  failures — each handled by a separate code path in `handleFinished()`.
 - Adding a new constraint (e.g. maximum activity count) has one place:
   `validate_activities()`. Its tests are independent of the scheduling tests.
