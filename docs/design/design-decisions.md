@@ -43,7 +43,7 @@ AOA networks require dummy activities (zero-duration, zero-cost arrows) when two
 - A dummy arrow on the critical path is **dotted red**; off the critical path it is **dotted grey**.
 - Dummy arrows carry **no letter or duration label**.
 - Dummy arrows participate in the automatic hierarchical layout like any other edge.
-- Hovering over a dummy arrow shows a minimal tooltip: "Dummy activity (structural dependency, zero duration)."
+- Hovering over a dummy arrow shows a minimal tooltip: "Dummy Activity".
 - Dummy activities are **excluded** from the summary panel's Total Activities count, Critical Activities count, and activity table.
 
 ---
@@ -146,7 +146,7 @@ Each critical path shown as a node sequence (e.g. `1 → 3 → 5 → 7`). If mul
 | Critical Activities | Excludes dummy activities |
 | Total Nodes | |
 | Minimal Project Duration | |
-| Total Cost | Sum of all activity costs (dummies contribute 0) |
+| Total Cost | Sum of real activity costs; dummy activities are excluded (zero cost and zero duration by definition) |
 | Total Cost per Critical Path | One entry per critical path |
 
 ### 3. Activity Table
