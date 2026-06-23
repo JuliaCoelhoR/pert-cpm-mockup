@@ -286,3 +286,156 @@ body {
     color: var(--color-text-muted);
     font-style: italic;
 }
+
+/* ── Diagram tooltips ──────────────────────────────────────────────────────── */
+
+.vis-tooltip-content {
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    min-width: 180px;
+}
+
+.vis-tooltip-content .tooltip-header {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.vis-tooltip-content dl.tooltip-fields {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    margin: 0;
+}
+
+.vis-tooltip-content dt {
+    color: var(--color-text-muted);
+    font-weight: normal;
+}
+
+.vis-tooltip-content dd {
+    margin: 0;
+    font-weight: 500;
+}
+
+.tooltip-slack-critical {
+    color: var(--color-critical);
+    font-weight: 700;
+}
+
+.tooltip-activity.tooltip-critical .tooltip-header {
+    color: var(--color-critical);
+}
+
+/* ── Summary panel ───────────────────────────────────────────────────────────── */
+
+.summary-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.summary-subtitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.625rem;
+}
+
+/* Section 1 — Critical paths */
+
+.critical-path-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.critical-path-row {
+    font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+    font-size: 0.9375rem;
+    color: var(--color-critical);
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    background-color: #fdf2f2;
+    border-left: 3px solid var(--color-critical);
+    border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+/* Section 2 — Project stats */
+
+.summary-stats-list {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.25rem 1.25rem;
+    font-size: 0.9375rem;
+}
+
+.summary-stats-list dt {
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.summary-stats-list dd {
+    margin: 0;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+/* Section 3 — Activity table */
+
+.activity-table-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.summary-table th {
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.summary-table td {
+    padding: 0.375rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-text);
+}
+
+.summary-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.summary-table tbody tr.row-critical {
+    background-color: #fdf2f2;
+}
+
+.summary-table tbody tr.row-critical td:first-child {
+    color: var(--color-critical);
+    font-weight: 700;
+}
+
+.summary-table tbody tr:hover {
+    background-color: var(--color-surface);
+}
+
+.summary-table tbody tr.row-critical:hover {
+    background-color: #f9e8e8;
+}

@@ -1,3 +1,10 @@
+import { buildActivityTooltipHtml, buildEventTooltipHtml } from './tooltips.js';
+import { activityColor, getCriticalNodeIds, eventColor } from './diagram.js';
+import { getLetter, validateAllRows } from './validation.js';
+import { parseTabPaste } from './paste.js';
+import { buildCriticalPathsHtml, buildProjectStatsHtml, buildActivityTableHtml } from './summary.js';
+import { mapValidationErrors } from './mapErrors.js';
+
 // ── State ──────────────────────────────────────────────────────────────────────
 
 /** @type {Array<{letterIndex: number, description: string, prerequisites: string, duration: string, costPerDay: string}>} */
@@ -8,14 +15,6 @@ let draftRow = { description: '', prerequisites: '', duration: '', costPerDay: '
 let network = null;
 
 // ── Utilities ──────────────────────────────────────────────────────────────────
-
-function getLetter(index) {
-    if (index < 26) return String.fromCharCode(65 + index);
-    return (
-        String.fromCharCode(65 + Math.floor(index / 26) - 1) +
-        String.fromCharCode(65 + (index % 26))
-    );
-}
 
 function getActiveLetters() {
     return new Set(rows.map(r => getLetter(r.letterIndex)));
@@ -76,7 +75,7 @@ function buildRealRow(row, index) {
             clearError(input);
         });
         input.addEventListener('blur', () => {
-            const error = validateField(field, input.value, row);
+            const error = validateField(field, input.value, getActiveLetters());
             if (error) {
                 input.classList.add('cell-error');
                 input.title = error;
@@ -85,6 +84,7 @@ function buildRealRow(row, index) {
                 input.title = '';
             }
         });
+        input.addEventListener('paste', handlePaste);
         td.appendChild(input);
         tr.appendChild(td);
     });
@@ -128,6 +128,12 @@ function buildTrailingRow() {
         if (min  !== undefined) input.min  = min;
         if (step !== undefined) input.step = step;
         input.addEventListener('input', () => { draftRow[field] = input.value; });
+        input.addEventListener('paste', handlePaste);
+        if (id === 'trail-cost') {
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Tab' && !e.shiftKey) e.preventDefault();
+            });
+        }
         td.appendChild(input);
         tr.appendChild(td);
     });
@@ -175,79 +181,23 @@ function deleteRow(index) {
     renderTable();
 }
 
-// ── Validation ─────────────────────────────────────────────────────────────────
+// ── Paste ──────────────────────────────────────────────────────────────────────
 
-function validateField(field, value, _row) {
-    switch (field) {
-        case 'description': {
-            if (!value.trim()) return 'Description is required.';
-            return null;
-        }
-        case 'duration': {
-            if (value.trim() === '') return 'Duration is required.';
-            const n = Number(value);
-            if (!Number.isInteger(n) || n < 1) return 'Duration must be a positive integer (≥ 1).';
-            return null;
-        }
-        case 'costPerDay': {
-            if (value.trim() === '') return null;
-            const n = parseFloat(value);
-            if (isNaN(n) || n < 0) return 'Cost/day must be a non-negative number.';
-            return null;
-        }
-        case 'prerequisites': {
-            const tokens = value.split(/[\s,]+/).filter(Boolean);
-            if (tokens.length === 0) return null;
-            const active = getActiveLetters();
-            const unknown = tokens.filter(t => !active.has(t.toUpperCase()));
-            if (unknown.length > 0) {
-                return `Unknown prerequisite letter${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}.`;
-            }
-            return null;
-        }
-        default:
-            return null;
-    }
-}
+function handlePaste(e) {
+    const text = e.clipboardData?.getData('text/plain') ?? '';
+    if (!text.includes('\t') && !text.includes('\n')) return;
 
-function mapValidationErrors(backendErrors) {
-    const fieldErrors = [];
-    const bannerMsgs  = [];
+    e.preventDefault();
+    flushDraft();
 
-    const fieldMap = {
-        description:   'description',
-        duration:      'duration',
-        cost_per_day:  'costPerDay',
-        prerequisites: 'prerequisites',
-        letter:        null,
-    };
-
-    backendErrors.forEach(e => {
-        if (!e.letter || !e.field) {
-            bannerMsgs.push(e.message);
-            return;
-        }
-        const frontendField = fieldMap[e.field];
-        if (frontendField === undefined) {
-            console.warn(`mapValidationErrors: unrecognised backend field "${e.field}", falling back to banner`);
-            bannerMsgs.push(e.message);
-            return;
-        }
-        if (frontendField === null) {
-            // Intentional: no editable cell for this field (e.g. "letter")
-            bannerMsgs.push(e.message);
-            return;
-        }
-        const index = rows.findIndex(r => getLetter(r.letterIndex) === e.letter);
-        if (index === -1) {
-            bannerMsgs.push(e.message);
-            return;
-        }
-        fieldErrors.push({ index, field: frontendField, msg: e.message });
+    parseTabPaste(text).forEach(({ description, prerequisites, duration, costPerDay }) => {
+        rows.push({ letterIndex: nextLetterIndex++, description, prerequisites, duration, costPerDay });
     });
 
-    return { fieldErrors, bannerMsgs };
+    renderTable();
 }
+
+// ── Validation ─────────────────────────────────────────────────────────────────
 
 function applyErrors(errors) {
     document.querySelectorAll('.cell-input.cell-error').forEach(el => el.classList.remove('cell-error'));
@@ -259,11 +209,12 @@ function applyErrors(errors) {
 
     const banner = document.getElementById('error-banner');
     if (errors.length > 0) {
-        banner.textContent =
-            `${errors.length} validation error${errors.length !== 1 ? 's' : ''} — ` +
-            `fix the highlighted cells and click Finished again.`;
+        banner.textContent = errors.length === 1
+            ? `1 cell has an error — fix it before continuing.`
+            : `${errors.length} cells have errors — fix them before continuing.`;
         banner.classList.remove('hidden');
         document.querySelector('.cell-input.cell-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.querySelector('.cell-input.cell-error')?.focus();
     } else {
         banner.classList.add('hidden');
     }
@@ -291,6 +242,13 @@ async function handleFinished() {
     }
 
     renderTable();
+
+    const frontendErrors = validateAllRows(rows);
+    if (frontendErrors.length > 0) {
+        applyErrors(frontendErrors);
+        return;
+    }
+
     applyErrors([]);
 
     const payload = rows.map(row => ({
@@ -314,7 +272,7 @@ async function handleFinished() {
             try { body = await res.json(); } catch { /* non-JSON body */ }
 
             if (res.status === 422 && body !== null) {
-                const { fieldErrors, bannerMsgs } = mapValidationErrors(body.errors ?? []);
+                const { fieldErrors, bannerMsgs } = mapValidationErrors(body.errors ?? [], rows);
                 if (fieldErrors.length > 0) {
                     applyErrors(fieldErrors);
                     if (bannerMsgs.length > 0) {
@@ -344,6 +302,7 @@ async function handleFinished() {
 
     try {
         renderDiagram(data);
+        renderSummary(data);
     } catch {
         showBanner('Failed to render the diagram — please reload the page.');
     }
@@ -351,10 +310,20 @@ async function handleFinished() {
 
 // ── Diagram ────────────────────────────────────────────────────────────────────
 
+function makeTooltipElement(html) {
+    if (!html) return undefined;
+    const div = document.createElement('div');
+    div.className = 'vis-tooltip-content';
+    div.innerHTML = html;
+    return div;
+}
+
 function renderDiagram(data) {
     const section = document.getElementById('diagram-section');
     const wasHidden = section.classList.contains('hidden');
     section.classList.remove('hidden');
+
+    const criticalNodeIds = getCriticalNodeIds(data.project.critical_paths);
 
     const visNodes = new vis.DataSet(
         data.events.map(ev => ({
@@ -362,14 +331,10 @@ function renderDiagram(data) {
             label: String(ev.number),
             shape: 'circle',
             size:  22,
-            color: {
-                background: '#ffffff',
-                border:     '#3a5a8c',
-                highlight:  { background: '#ffffff', border: '#3a5a8c' },
-                hover:      { background: '#f0f4fa', border: '#3a5a8c' },
-            },
+            color: eventColor(ev.number, criticalNodeIds),
             font:        { color: '#2c2c2c', size: 14, face: 'system-ui, sans-serif' },
             borderWidth: 2,
+            title:       makeTooltipElement(buildEventTooltipHtml(ev, data.activities)),
         }))
     );
 
@@ -380,7 +345,7 @@ function renderDiagram(data) {
             to:     act.to_node,
             label:  act.dummy ? '' : `${act.letter}\n${act.duration}d`,
             dashes: act.dummy,
-            color:  { color: '#7f8c8d', highlight: '#7f8c8d', hover: '#7f8c8d' },
+            color:  activityColor(act),
             font: {
                 color:       '#2c2c2c',
                 size:        12,
@@ -392,6 +357,7 @@ function renderDiagram(data) {
             arrows: { to: { enabled: true, scaleFactor: 0.8 } },
             width:  2,
             smooth: false,
+            title:  makeTooltipElement(buildActivityTooltipHtml(act)),
         }))
     );
 
@@ -410,7 +376,7 @@ function renderDiagram(data) {
             dragNodes: false,
             dragView:  true,
             zoomView:  true,
-            hover:     false,
+            hover:     true,
         },
         physics: { enabled: false },
     };
@@ -425,6 +391,17 @@ function renderDiagram(data) {
     if (wasHidden) {
         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+}
+
+// ── Summary ────────────────────────────────────────────────────────────────────
+
+function renderSummary(data) {
+    const section = document.getElementById('summary-section');
+    section.innerHTML =
+        buildCriticalPathsHtml(data.project) +
+        buildProjectStatsHtml(data) +
+        buildActivityTableHtml(data.activities);
+    section.classList.remove('hidden');
 }
 
 // ── Bootstrap ──────────────────────────────────────────────────────────────────
